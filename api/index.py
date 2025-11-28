@@ -25,15 +25,33 @@ def load_model():
             "(e.g., GitHub raw URL, S3, or Vercel Blob Storage)"
         )
     
+    # Check scikit-learn version compatibility
+    import sklearn
+    print(f"Using scikit-learn version: {sklearn.__version__}")
+    
     # Download model to temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as tmp_file:
         try:
             print(f"Downloading model from {MODEL_URL}...")
             urllib.request.urlretrieve(MODEL_URL, tmp_file.name)
             print("Model downloaded successfully, loading...")
-            model = joblib.load(tmp_file.name)
-            print("Model loaded successfully")
-            return model
+            
+            # Load with compatibility check
+            try:
+                model = joblib.load(tmp_file.name)
+                print("Model loaded successfully")
+                return model
+            except AttributeError as e:
+                # Provide helpful error message for version mismatch
+                error_msg = str(e)
+                if '_RemainderColsList' in error_msg or 'sklearn' in error_msg.lower():
+                    raise RuntimeError(
+                        f"Model version mismatch! The model was saved with a different "
+                        f"scikit-learn version. Current version: {sklearn.__version__}. "
+                        f"Please ensure scikit-learn==1.7.2 is installed. "
+                        f"Original error: {error_msg}"
+                    )
+                raise
         except Exception as e:
             raise RuntimeError(f"Failed to load model from {MODEL_URL}: {str(e)}")
         finally:
